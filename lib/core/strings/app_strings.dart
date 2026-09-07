@@ -92,6 +92,15 @@ abstract final class AppStrings {
   /// 길이가 다르면 라벨의 시작 위치가 줄마다 어긋난다.
   static const termsOptional = '선택';
 
+  /// 연령 확인. **동의가 아니라 확인이라 "동의합니다"로 적지 않는다** —
+  /// 만 14세 미만은 애초에 받지 않기로 한 것이지, 사용자가 동의로 열 수 있는
+  /// 문이 아니다.
+  ///
+  /// ⚠️ **이 항목이 목록 맨 위에 있어야 한다.** 개인정보를 받기 전에 세우는
+  /// 관문이다 — 생년월일은 프로필 설정에서야 받으므로, 이것이 없으면 이메일과
+  /// 비밀번호를 다 받은 뒤에야 나이를 알게 된다. 기준은 `AgeRule.minimum`이다.
+  static const termsAge = '만 14세 이상입니다';
+
   static const termsService = '서비스 이용약관';
   static const termsPrivacy = '개인정보 수집·이용';
   static const termsHealth = '생체·운동 정보';
@@ -169,6 +178,11 @@ abstract final class AppStrings {
   static const profileBirthLabel = '생년월일';
   static const profileBirthQuestion = '언제 태어났나요';
   static const profileBirthWhy = '기록을 계산하는 데만 써요. 다른 러너에게 보이지 않아요.';
+
+  /// 만 14세 미만을 막을 때. **왜 막혔는지 말해야 한다** — 서버도 400으로
+  /// 거절하지만 그 메시지는 화면에 닿지 않아, 앱이 말하지 않으면 사용자는
+  /// 다음 버튼이 고장 난 줄 안다. 기준은 `AgeRule.minimum`이다.
+  static const profileBirthTooYoung = '만 14세부터 가입할 수 있어요';
   static const profileUnitYear = '년';
   static const profileUnitMonth = '월';
   static const profileUnitDay = '일';
@@ -833,7 +847,20 @@ abstract final class AppStrings {
 
   static const settingsPassword = '비밀번호 변경';
 
-  static const settingsTerms = '약관 및 개인정보처리방침';
+  /// ⚠️ **이용약관만 가리킨다.** 예전에는 문서가 하나도 없어 한 행이 둘을
+  /// 함께 맡았는데, 개인정보처리방침이 생겨 행이 갈라졌다.
+  static const settingsTerms = '이용약관';
+
+  /// 구글 플레이 심사가 요구하는 두 링크. 앱 밖 문서를 브라우저로 연다.
+  static const settingsPrivacy = '개인정보처리방침';
+  static const settingsAccountDeletion = '계정·데이터 삭제 안내';
+
+  /// 브라우저가 없거나 인텐트가 막혔을 때. **주소를 화면에 적지 않는다** —
+  /// 길어서 읽히지 않고, 손으로 옮겨 적게 만드는 것은 안내가 아니다.
+  ///
+  /// ⚠️ 설정과 약관 동의 **두 화면이 함께 쓴다.** 한쪽 이름을 붙이면 다른
+  /// 쪽에서 어색해진다.
+  static const legalDocumentFailed = '문서를 열지 못했어요. 잠시 후 다시 시도해주세요';
 
   static const settingsSignOut = '로그아웃';
 
@@ -856,8 +883,14 @@ abstract final class AppStrings {
 
   static const settingsCancel = '취소';
 
-  /// 약관 문서 주소가 아직 정해지지 않았다. `LegalLinks`를 함께 본다.
-  static const settingsTermsPending = '약관 문서를 준비하고 있어요';
+  /// 문서 주소가 아직 정해지지 않았다. `LegalLinks`를 함께 본다.
+  ///
+  /// ⚠️ 설정과 약관 동의 **두 화면이 함께 쓴다.**
+  static const legalDocumentPending = '문서를 준비하고 있어요';
+
+  /// 동의 항목의 전문을 여는 버튼. **화면에 글자로 나오지 않고 스크린 리더가
+  /// 읽는다** — 화살표만 있는 버튼이라 이 이름이 없으면 "버튼"이라고만 읽힌다.
+  static const termsViewDocument = '전문 보기';
 
   // ── 비밀번호 변경 ────────────────────────────────────────────
   //
