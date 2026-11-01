@@ -68,10 +68,15 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// **여기 하나만 둔다.** 화면마다 붙이면 복귀 한 번에 여러 번 묻는다.
   late final AppLifecycleListener _lifecycle;
 
+  /// `dispose`에서는 `ref`를 쓸 수 없어 붙일 때 잡아 둔다.
+  late final PushController _push = ref.read(pushProvider.notifier);
+
   @override
   void initState() {
     super.initState();
     _lifecycle = AppLifecycleListener(onResume: _onResume);
+    // 셸이 없는 사이에 누른 푸시를 가리려고 알린다([PushController.attachShell]).
+    _push.attachShell();
     // ⚠️ **세워질 때도 한 번 묻는다.** 스플래시를 거쳐 들어오면 이미 읽은
     // 값이 있지만, **로그인을 마치고 들어오는 길에는 없다** — 그 경로에는
     // 상태를 읽는 곳이 없어서, 진행 중인 매칭이 있어도 홈이 처음인 것처럼
@@ -90,6 +95,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void dispose() {
     _lifecycle.dispose();
+    _push.detachShell();
     super.dispose();
   }
 
@@ -144,11 +150,21 @@ class _AppShellState extends ConsumerState<AppShell> {
   ///
   /// 꺼진 앱이었으면 이미 홈이다. 뒤에 있던 앱이면 보던 화면을 빼앗지 않는다 —
   /// 달리는 중에 홈으로 끌어내면 러닝 화면이 사라진다([_refreshStatus]와 같은 판단).
+  ///
+  /// ## ⚠️ 카운트다운·러닝 중이면 버린다
+  ///
+  /// 셸 위에 얹힌 그 화면들 위로 옮기면 출발이나 달리기가 가려진다. 알림함에는
+  /// 남아 있다([LaunchGate]가 같은 두 자리를 본다).
   Future<void> _openPushed() async {
     if (ref.read(authControllerProvider) is! AuthSignedIn) return;
-    switch (ref.read(pushProvider.notifier).take()) {
-      case null:
-        return;
+    final landing = _push.take();
+    if (landing == null) return;
+    final where = GoRouter.of(context).state.matchedLocation;
+    if (where == AppRoutes.matchCountdown || where == AppRoutes.runSession) {
+      debugPrint('[push] 카운트다운·러닝 중이라 옮기지 않는다');
+      return;
+    }
+    switch (landing) {
       case PushLandingProfile(:final userId):
         context.push(AppRoutes.userProfileOf(userId));
       case PushLandingNotifications():

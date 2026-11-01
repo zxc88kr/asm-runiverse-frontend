@@ -86,6 +86,19 @@ class PushController extends Notifier<PushLanding?> {
   /// 두 겹 쌓이므로, 들어오는 타이밍에 기대지 않고 ID로 거른다.
   final _handled = <String>{};
 
+  /// 지금 서 있는 셸 수. 셸이 세워질 때 [attachShell], 내려갈 때 [detachShell].
+  ///
+  /// 수로 센다 — 갈아끼울 때 새 셸이 먼저 서고 옛 셸이 나중에 내려갈 수 있다.
+  var _shells = 0;
+
+  /// 이 로그인에서 셸이 한 번이라도 섰는가. 꺼진 앱을 연 누름은 셸이 서기 전에
+  /// 온다 — 그때는 받아 둔다.
+  var _shellSeen = false;
+
+  /// 셸이 모두 내려갈 때마다 올라간다. 받아 둔 자리가 어느 셸 때의 것인지 가린다.
+  var _shellEpoch = 0;
+  var _landingEpoch = 0;
+
   @override
   PushLanding? build() {
     _messaging = ref.read(pushMessagingProvider);
@@ -138,10 +151,30 @@ class PushController extends Notifier<PushLanding?> {
   }
 
   /// 셸이 옮길 자리를 꺼내 간다. 꺼내면 비운다 — 같은 푸시로 두 번 옮기지 않는다.
+  ///
+  /// ⚠️ **받은 뒤 셸이 내려갔으면 내주지 않는다.** 누른 직후 출발 직전 이동으로
+  /// 셸이 내려가 옮기지 못한 자리다. 러닝을 마치고 홈에 돌아온 순간 열리면
+  /// 한참 전에 누른 화면이 갑자기 뜬다.
   PushLanding? take() {
     final landing = state;
     if (landing != null) state = null;
-    return landing;
+    return _landingEpoch == _shellEpoch ? landing : null;
+  }
+
+  /// 셸이 섰다. 셸의 `initState`가 부른다.
+  void attachShell() {
+    _shells++;
+    _shellSeen = true;
+  }
+
+  /// 셸이 내려갔다. 셸의 `dispose`가 부른다.
+  ///
+  /// 여기서 [state]를 바꾸지 않는다 — 위젯이 내려가는 도중에 provider를 바꾸면
+  /// Riverpod이 막는다. 받아 둔 자리는 [take]가 셸 차수로 거른다.
+  void detachShell() {
+    assert(_shells > 0, '붙이지 않은 셸을 뗐다');
+    _shells--;
+    if (_shells == 0) _shellEpoch++;
   }
 
   void _onAuth(AuthState auth) {
@@ -160,6 +193,9 @@ class PushController extends Notifier<PushLanding?> {
         // ⚠️ **눌러 둔 자리도 버린다.** 남겨 두면 다음에 들어온 다른 계정이
         // 앞 사람의 화면을 연다.
         if (state != null) state = null;
+        // 다음 로그인도 셸이 서기 전 누름은 받아 둔다(처음 켠 것과 같게).
+        // 셸 수는 두지 않는다 — 아직 서 있는 셸이 내려가면서 뺀다.
+        _shellSeen = false;
     }
   }
 
@@ -238,6 +274,14 @@ class PushController extends Notifier<PushLanding?> {
     if (landing == null) return;
     // 로그아웃 상태면 받지 않는다(위 [_onAuth]와 같은 이유).
     if (ref.read(authControllerProvider) is AuthSignedOut) return;
+    // ⚠️ **셸이 섰다가 내려간 사이에 누른 것은 버린다.** 출발 직전부터 러닝을
+    // 마칠 때까지다. 남겨 두면 홈에 돌아온 순간 한참 전에 누른 화면이 열린다.
+    // 알림함에는 남아 있다.
+    if (_shellSeen && _shells == 0) {
+      debugPrint('[push] 셸이 없는 사이의 누름이다. 버린다');
+      return;
+    }
+    _landingEpoch = _shellEpoch;
     state = landing;
   }
 
