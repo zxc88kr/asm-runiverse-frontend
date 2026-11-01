@@ -23,7 +23,7 @@ final matchRepositoryProvider = Provider<MatchRepository>(
   (ref) => HttpMatchRepository(
     ref.watch(dioProvider),
     ref.watch(tokenStoreProvider),
-    ref.watch(authRepositoryProvider),
+    ref.watch(tokenRefresherProvider),
   ),
 );
 

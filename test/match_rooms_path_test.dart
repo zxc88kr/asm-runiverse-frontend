@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:runiverse/core/storage/token_store.dart';
 import 'package:runiverse/features/auth/data/fake_auth_repository.dart';
+import 'package:runiverse/features/auth/domain/token_refresher.dart';
 import 'package:runiverse/features/matching/data/http_match_repository.dart';
 import 'package:runiverse/features/matching/data/sse_match_stream.dart';
 
@@ -38,7 +39,7 @@ void main() {
     return HttpMatchRepository(
       Dio(BaseOptions(baseUrl: 'http://test.invalid'))..httpClientAdapter = api,
       store,
-      FakeAuthRepository(latency: Duration.zero),
+      TokenRefresher(FakeAuthRepository(latency: Duration.zero), store),
     );
   }
 
@@ -88,7 +89,7 @@ void main() {
       );
       stream = SseMatchStream(
         store,
-        FakeAuthRepository(latency: Duration.zero),
+        TokenRefresher(FakeAuthRepository(latency: Duration.zero), store),
         baseUrl: 'http://${server.address.address}:${server.port}',
       );
     });

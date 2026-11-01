@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:runiverse/core/storage/token_store.dart';
 import 'package:runiverse/features/auth/data/fake_auth_repository.dart';
+import 'package:runiverse/features/auth/domain/token_refresher.dart';
 import 'package:runiverse/features/matching/data/http_match_repository.dart';
 import 'package:runiverse/features/matching/domain/invite_failure.dart';
 
@@ -158,7 +159,11 @@ void main() {
       dio.httpClientAdapter = _RecordingAdapter(sent, bodies);
       final store = InMemoryTokenStore();
       await store.saveTokens(accessToken: 'a', refreshToken: 'r');
-      repo = HttpMatchRepository(dio, store, FakeAuthRepository());
+      repo = HttpMatchRepository(
+        dio,
+        store,
+        TokenRefresher(FakeAuthRepository(), store),
+      );
     });
 
     test('개설은 시각과 거리만 보낸다', () async {
@@ -204,7 +209,11 @@ void main() {
       dio.httpClientAdapter = _RecordingAdapter(sent, bodies, body: '{}');
       final store = InMemoryTokenStore();
       await store.saveTokens(accessToken: 'a', refreshToken: 'r');
-      final blind = HttpMatchRepository(dio, store, FakeAuthRepository());
+      final blind = HttpMatchRepository(
+        dio,
+        store,
+        TokenRefresher(FakeAuthRepository(), store),
+      );
 
       await expectLater(
         blind.createInviteRoom(

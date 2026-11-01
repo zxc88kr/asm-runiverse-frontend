@@ -6,8 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:runiverse/core/config/app_config.dart';
 import 'package:runiverse/core/storage/token_store.dart';
 import 'package:runiverse/core/utils/kst_time.dart';
-import 'package:runiverse/features/auth/domain/auth_failure.dart';
-import 'package:runiverse/features/auth/domain/auth_repository.dart';
+import 'package:runiverse/features/auth/domain/token_refresher.dart';
 import 'package:runiverse/features/matching/domain/match_event.dart';
 import 'package:runiverse/core/network/dio_client.dart';
 import 'package:runiverse/core/version/app_version_headers.dart';
@@ -25,11 +24,11 @@ import 'package:runiverse/features/session/domain/user_status.dart';
 /// 그 위에 40줄을 얹는 편이 의존을 하나 늘리는 것보다 가볍다. `Last-Event-ID`
 /// 재개도 쓰지 않는다 — 각 이벤트가 전체 상태라 재개할 것이 없다.
 class SseMatchStream implements MatchStream {
-  SseMatchStream(this._store, this._auth, {String? baseUrl})
+  SseMatchStream(this._store, this._refresher, {String? baseUrl})
     : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
   final TokenStore _store;
-  final AuthRepository _auth;
+  final TokenRefresher _refresher;
 
   /// 붙을 서버. 테스트만 루프백 서버를 넣는다. 앱은 빌드에 박힌 값을 쓴다.
   final String _baseUrl;
@@ -118,7 +117,7 @@ class SseMatchStream implements MatchStream {
       } on MatchStreamException catch (error) {
         // 401이면 한 번만 갱신하고 다시 붙는다 — 다른 저장소와 같은 규칙이다.
         if (error.failure != MatchStreamFailure.sessionExpired) rethrow;
-        token = await _refreshed(stored.refreshToken);
+        token = await _refreshed();
         if (controller.isClosed) return;
         body = await _open(client, token);
       }
@@ -432,25 +431,18 @@ class SseMatchStream implements MatchStream {
     );
   }
 
-  Future<String> _refreshed(String? refreshToken) async {
-    if (refreshToken == null) {
-      throw const MatchStreamException(MatchStreamFailure.sessionExpired);
+  /// 갱신은 반드시 [TokenRefresher]를 거친다(`docs/implementation-notes.md` 9-6).
+  ///
+  /// ⚠️ **못 받아도 `network`로 던진다.** `null`은 거절과 네트워크 실패를
+  /// 가리지 않는데, `sessionExpired`로 던지면 터널에서 갱신이 끊겼을 때도
+  /// 다시 붙지 않는다. 진짜 거절이면 [TokenRefresher]가 세션을 끝낸다 —
+  /// `WsClient`가 같은 이유로 멈추지 않는다.
+  Future<String> _refreshed() async {
+    final accessToken = await _refresher.refresh();
+    if (accessToken == null) {
+      throw const MatchStreamException(MatchStreamFailure.network);
     }
-    try {
-      final tokens = await _auth.refresh(refreshToken);
-      // ⚠️ 회전된 refreshToken도 반드시 덮어쓴다. 안 하면 다음 갱신이 죽는다.
-      await _store.saveTokens(
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      );
-      return tokens.accessToken;
-    } on AuthException catch (error) {
-      throw MatchStreamException(
-        error.failure == AuthFailure.sessionExpired
-            ? MatchStreamFailure.sessionExpired
-            : MatchStreamFailure.network,
-      );
-    }
+    return accessToken;
   }
 
   /// 서버는 시간대 없는 한국 시각을 준다. [KstTime]이 그것을 기기 시각으로
