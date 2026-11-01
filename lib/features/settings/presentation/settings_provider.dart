@@ -78,7 +78,14 @@ class SettingsController extends Notifier<SettingsState> {
   Future<void> load() async {
     state = state.copyWith(loading: true);
 
+    // 저장 중에 시작한 조회는 버린다. 서버가 그 저장을 처리하기 전에 읽었을
+    // 수 있다 — 화면은 저장 응답이 정리한다.
+    final sendingAtStart = _sending;
     final (settings, failure) = await _attempt(_repository.fetchSettings());
+    if (sendingAtStart || _sending) {
+      state = state.copyWith(loading: false);
+      return;
+    }
 
     state = SettingsState(settings: settings, failure: failure);
   }
