@@ -20,10 +20,7 @@ void main() {
 
   test('친구 푸시에 상대가 없으면 앱만 연다', () {
     expect(PushLanding.of({'type': 'FRIEND_REQUESTED'}), isNull);
-    expect(
-      PushLanding.of({'type': 'FRIEND_ACCEPTED', 'actorId': ''}),
-      isNull,
-    );
+    expect(PushLanding.of({'type': 'FRIEND_ACCEPTED', 'actorId': ''}), isNull);
   });
 
   test('러닝 초대는 수락·거절 버튼이 있는 알림함이다', () {
