@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,7 +16,10 @@ import 'package:runiverse/features/auth/presentation/auth_state.dart';
 import 'package:runiverse/features/matching/data/fake_match_repository.dart';
 import 'package:runiverse/features/notification/data/fake_app_stream.dart';
 import 'package:runiverse/features/notification/data/fake_notification_repository.dart';
+import 'package:runiverse/features/notification/domain/push_messaging.dart';
 import 'package:runiverse/features/notification/presentation/notification_provider.dart';
+import 'package:runiverse/features/notification/presentation/push_provider.dart';
+import 'package:runiverse/features/profile/presentation/user_profile_page.dart';
 import 'package:runiverse/features/matching/presentation/match_register_provider.dart';
 import 'package:runiverse/features/session/data/fake_location_repository.dart';
 import 'package:runiverse/features/session/data/fake_step_repository.dart';
@@ -28,6 +33,7 @@ import 'package:runiverse/features/session/domain/running_channel.dart';
 import 'package:runiverse/features/session/domain/track_point.dart';
 import 'package:runiverse/features/session/domain/user_status.dart';
 import 'package:runiverse/features/session/domain/user_status_repository.dart';
+import 'package:runiverse/features/session/presentation/run_session_page.dart';
 import 'package:runiverse/features/session/presentation/run_session_provider.dart';
 import 'package:runiverse/features/session/presentation/running_connection_provider.dart';
 import 'package:runiverse/features/session/presentation/user_status_provider.dart';
@@ -42,6 +48,7 @@ void main() {
 
   late FakeUserStatusRepository status;
   late _CountingChannel channel;
+  late _TapPushes pushes;
 
   UserStatusRunning running({int room = 29}) => UserStatusRunning(
     runningRoomId: room,
@@ -53,6 +60,7 @@ void main() {
   Future<ProviderContainer> pumpHome(WidgetTester tester) async {
     status = FakeUserStatusRepository(status: running());
     channel = _CountingChannel();
+    pushes = _TapPushes();
 
     final tokens = InMemoryTokenStore();
     await tokens.saveSession(
@@ -82,6 +90,7 @@ void main() {
         trackRepositoryProvider.overrideWithValue(FakeTrackRepository()),
         stepRepositoryProvider.overrideWithValue(FakeStepRepository()),
         runningChannelFactoryProvider.overrideWithValue((_) => channel),
+        pushMessagingProvider.overrideWithValue(pushes),
         // ⚠️ 로그인 상태가 아니면 셸이 유저 상태를 **묻지도 않는다**
         // (`AppShell._refreshStatus`). 그러면 히어로가 기본 화면으로 떨어져
         // 이 테스트가 무의미해진다.
@@ -207,6 +216,36 @@ void main() {
     expect(container.read(runningConnectionProvider).room?.id, 29);
     await leave(tester, container);
   });
+
+  testWidgets('⚠️ 달리는 중에 누른 푸시는 러닝 화면을 가리지 않는다', (tester) async {
+    // 홈에서 들어간 러닝은 셸 위에 얹혀 셸이 살아 있다. 그대로 두면 친구
+    // 프로필이 러닝 화면 위로 열린다. 알림함에는 남아 있다.
+    final container = await pumpHome(tester);
+    await tester.tap(find.text(AppStrings.homeRunToSession));
+    await tester.pumpAndSettle();
+    expect(find.byType(RunSessionPage), findsOneWidget);
+
+    pushes.taps.add(
+      const OpenedPush(
+        messageId: 'm-1',
+        data: {'type': 'FRIEND_REQUESTED', 'actorId': 'u-9'},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(UserProfilePage), findsNothing);
+    expect(find.byType(RunSessionPage), findsOneWidget);
+    await leave(tester, container);
+  });
+}
+
+/// 눌린 푸시만 흘려보낸다. 토큰이 없어 기기 등록은 하지 않는다
+/// ([NoopPushMessaging]과 같다).
+class _TapPushes extends NoopPushMessaging {
+  final taps = StreamController<OpenedPush>.broadcast();
+
+  @override
+  Stream<OpenedPush> get opened => taps.stream;
 }
 
 /// 로그인 상태를 고정한다. `signIn()`으로 만들면 가짜 시간 위에서 멈춘다.

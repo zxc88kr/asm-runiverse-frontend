@@ -260,6 +260,90 @@ void main() {
       expect(push(app.container).take(), isNull);
     });
 
+    group('셸이 없는 사이', () {
+      // 출발 1분 전 대기방으로 옮길 때(`LaunchGate`) 셸이 내려간다. 그 사이 누름을
+      // 남겨 두면 러닝을 마치고 홈에 돌아온 순간 한참 전에 누른 화면이 열린다.
+
+      test('⚠️ 셸이 내려간 사이에 누른 푸시는 버린다', () async {
+        final app = build(initial: me);
+        push(app.container)
+          ..attachShell()
+          ..detachShell();
+
+        app.messaging.taps.add(friendRequest);
+        await settle();
+        push(app.container).attachShell();
+
+        expect(push(app.container).take(), isNull);
+      });
+
+      test('셸이 서기 전에 누른 푸시는 받아 둔다', () async {
+        // 꺼진 앱을 연 누름이다.
+        final app = build(initial: me, initialOpened: friendRequest);
+        await settle();
+        push(app.container).attachShell();
+
+        expect(push(app.container).take(), isA<PushLandingProfile>());
+      });
+
+      test('⚠️ 꺼진 앱을 연 누름이 두 통로로 어느 순서로 와도 한 번 연다', () async {
+        // 두 통로가 같은 누름을 준다(implementation-notes 15-7). 순서는 정해져 있지 않다.
+        final app = build(initial: me, initialOpened: friendRequest);
+        app.messaging.taps.add(friendRequest);
+        await settle();
+        push(app.container).attachShell();
+
+        expect(push(app.container).take(), isA<PushLandingProfile>());
+        expect(push(app.container).take(), isNull);
+      });
+
+      test('⚠️ 받아 둔 직후 셸이 내려갔으면 다음 셸에서 열지 않는다', () async {
+        // 누른 프레임에 바로 출발 직전 이동이 겹쳐 셸이 옮기지 못한 경우다.
+        final app = build(initial: me);
+        push(app.container).attachShell();
+        app.messaging.taps.add(friendRequest);
+        await settle();
+
+        push(app.container)
+          ..detachShell()
+          ..attachShell();
+
+        expect(push(app.container).take(), isNull);
+      });
+
+      test('셸을 갈아끼우는 사이에 하나라도 서 있으면 받아 둔다', () async {
+        // 새 셸이 먼저 서고 옛 셸이 나중에 내려갈 수 있다.
+        final app = build(initial: me);
+        push(app.container)
+          ..attachShell()
+          ..attachShell()
+          ..detachShell();
+
+        app.messaging.taps.add(friendRequest);
+        await settle();
+
+        expect(push(app.container).take(), isA<PushLandingProfile>());
+      });
+
+      test('로그아웃 뒤 다시 들어오면 셸이 서기 전 누름을 받아 둔다', () async {
+        // 가입하는 사람은 셸 전에 프로필 입력을 거친다. 앞 로그인에 셸이 섰던
+        // 이력 때문에 버리면, 처음 켠 사람과 동작이 달라진다.
+        final app = build(initial: me);
+        push(app.container)
+          ..attachShell()
+          ..detachShell();
+        app.auth
+          ..set(signedOut)
+          ..set(const AuthSignedIn('u-2', isOnboarded: false));
+
+        app.messaging.taps.add(friendRequest);
+        await settle();
+        push(app.container).attachShell();
+
+        expect(push(app.container).take(), isA<PushLandingProfile>());
+      });
+    });
+
     test('⚠️ 로그아웃하면 눌러 둔 자리를 버린다', () async {
       // 남겨 두면 다음에 들어온 다른 계정이 앞 사람의 화면을 연다.
       final app = build(initial: me);
