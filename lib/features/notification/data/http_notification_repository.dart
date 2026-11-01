@@ -1,20 +1,20 @@
 import 'package:dio/dio.dart';
 import 'package:runiverse/core/storage/token_store.dart';
-import 'package:runiverse/features/auth/domain/auth_failure.dart';
-import 'package:runiverse/features/auth/domain/auth_repository.dart';
+import 'package:runiverse/features/auth/domain/token_refresher.dart';
 import 'package:runiverse/features/notification/data/notification_dto.dart';
 import 'package:runiverse/features/notification/domain/notification_page_result.dart';
 import 'package:runiverse/features/notification/domain/notification_repository.dart';
 
 /// 진짜 서버를 부르는 [NotificationRepository].
 ///
-/// 401 한 번 갱신은 다른 저장소와 같은 규칙이다.
+/// 401 한 번 갱신은 다른 저장소와 같은 규칙이다. 갱신은 반드시
+/// [TokenRefresher]를 거친다(`docs/implementation-notes.md` 9-6).
 class HttpNotificationRepository implements NotificationRepository {
-  HttpNotificationRepository(this._dio, this._store, this._auth);
+  HttpNotificationRepository(this._dio, this._store, this._refresher);
 
   final Dio _dio;
   final TokenStore _store;
-  final AuthRepository _auth;
+  final TokenRefresher _refresher;
 
   static const _path = '/api/v1/users/me/notifications';
   static const _readPath = '$_path/read';
@@ -75,31 +75,18 @@ class HttpNotificationRepository implements NotificationRepository {
     } on DioException catch (error) {
       if (error.response?.statusCode != 401) throw exceptionOf(error);
       try {
-        return await call(await _refreshed(stored.refreshToken));
+        return await call(await _refreshed());
       } on DioException catch (retried) {
         throw exceptionOf(retried);
       }
     }
   }
 
-  Future<String> _refreshed(String? refreshToken) async {
-    if (refreshToken == null) {
+  Future<String> _refreshed() async {
+    final accessToken = await _refresher.refresh();
+    if (accessToken == null) {
       throw const NotificationException(NotificationFailure.sessionExpired);
     }
-    try {
-      final tokens = await _auth.refresh(refreshToken);
-      // 회전된 refreshToken도 반드시 덮어쓴다. 안 하면 다음 갱신이 죽는다.
-      await _store.saveTokens(
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      );
-      return tokens.accessToken;
-    } on AuthException catch (error) {
-      throw NotificationException(
-        error.failure == AuthFailure.sessionExpired
-            ? NotificationFailure.sessionExpired
-            : NotificationFailure.network,
-      );
-    }
+    return accessToken;
   }
 }
