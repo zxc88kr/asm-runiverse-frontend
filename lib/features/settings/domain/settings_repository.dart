@@ -3,11 +3,8 @@ import 'package:runiverse/features/settings/domain/profile_visibility.dart';
 
 /// 설정 저장소 — **인터페이스만 있다.**
 ///
-/// 화면은 이 타입에만 기대고 누가 답하는지 모른다. 지금은 대부분
-/// `FakeSettingsRepository`가 답한다. 일곱 항목 중 서버가 준비된 것은
-/// 비밀번호 변경과 로그아웃 둘뿐이다(설계 문서 1절).
-///
-/// 서버가 뜨면 **`settings_provider.dart`의 한 줄**을 바꾼다.
+/// 화면은 이 타입에만 기대고 누가 답하는지 모른다. 앱에서는
+/// `HttpSettingsRepository`가, 테스트에서는 `FakeSettingsRepository`가 답한다.
 ///
 /// 실패는 전부 `SettingsException`(비밀번호만 `PasswordChangeException`)으로
 /// 던진다. 구현체가 dio 사정을 밖으로 흘리지 않는다 — 흘리면 화면이 HTTP를 알게 된다.

@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:runiverse/core/analytics/analytics.dart';
 import 'package:runiverse/features/auth/presentation/auth_provider.dart';
-import 'package:runiverse/features/settings/data/fake_settings_repository.dart';
 import 'package:runiverse/features/settings/data/http_settings_repository.dart';
-import 'package:runiverse/features/settings/data/staged_settings_repository.dart';
 import 'package:runiverse/features/settings/domain/app_settings.dart';
 import 'package:runiverse/features/settings/domain/password_change_failure.dart';
 import 'package:runiverse/features/settings/domain/profile_visibility.dart';
@@ -13,22 +11,11 @@ import 'package:runiverse/features/settings/domain/settings_failure.dart';
 import 'package:runiverse/features/settings/domain/settings_repository.dart';
 
 /// 설정 저장소.
-///
-/// ## ⚠️ 서버가 뜨면 여기를 바꾼다
-///
-/// 지금은 [StagedSettingsRepository]가 배포된 것만 서버로 보낸다.
-/// 55·57·58번과 탈퇴가 배포되면 **이 한 줄을 `HttpSettingsRepository`로 바꾸고**
-/// `staged_settings_repository.dart`와 가짜를 지운다.
 final settingsRepositoryProvider = Provider<SettingsRepository>(
-  (ref) => StagedSettingsRepository(
-    live: HttpSettingsRepository(
-      ref.watch(dioProvider),
-      ref.watch(tokenStoreProvider),
-      ref.watch(authRepositoryProvider),
-    ),
-    // ⚠️ `Provider`가 이 인스턴스를 하나만 만들어 들고 있는다. 그래야 토글을
-    // 켜고 화면을 나갔다 들어와도 켜진 채로 남는다.
-    fake: FakeSettingsRepository(),
+  (ref) => HttpSettingsRepository(
+    ref.watch(dioProvider),
+    ref.watch(tokenStoreProvider),
+    ref.watch(authRepositoryProvider),
   ),
 );
 
