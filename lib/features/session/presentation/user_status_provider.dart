@@ -9,7 +9,7 @@ final userStatusRepositoryProvider = Provider<UserStatusRepository>(
   (ref) => HttpUserStatusRepository(
     ref.watch(dioProvider),
     ref.watch(tokenStoreProvider),
-    ref.watch(authRepositoryProvider),
+    ref.watch(tokenRefresherProvider),
   ),
 );
 

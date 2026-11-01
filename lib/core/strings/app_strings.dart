@@ -1607,8 +1607,9 @@ abstract final class AppStrings {
 
   static const settingsAlertConsent = '알림 허용';
 
-  /// ⚠️ **지금은 이걸 켜도 알림이 오지 않는다.** 앱에 알림을 띄우는 코드가
-  /// 아직 없다. 그래서 "받고 있어요"가 아니라 **받겠다는 의사**로 적는다.
+  /// ⚠️ **켜도 기기 알림 권한이 꺼져 있으면 오지 않는다.** 서버는 이 값이
+  /// `false`인 사람에게만 보내지 않는다. 그래서 "받고 있어요"가 아니라
+  /// **받겠다는 의사**로 적는다.
   static const settingsAlertConsentWhy = '매칭과 러닝 소식을 받아요';
 
   static const settingsVisibilitySection = '공개 범위';

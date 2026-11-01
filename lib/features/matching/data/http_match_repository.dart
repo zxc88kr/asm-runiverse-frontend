@@ -2,8 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:runiverse/core/storage/token_store.dart';
 import 'package:runiverse/core/utils/kst_time.dart';
-import 'package:runiverse/features/auth/domain/auth_failure.dart';
-import 'package:runiverse/features/auth/domain/auth_repository.dart';
+import 'package:runiverse/features/auth/domain/token_refresher.dart';
 import 'package:runiverse/features/matching/data/slot_board_dto.dart';
 import 'package:runiverse/features/matching/domain/invite_failure.dart';
 import 'package:runiverse/features/matching/domain/match_failure.dart';
@@ -14,12 +13,13 @@ import 'package:runiverse/features/matching/domain/slot_load_failure.dart';
 /// 진짜 서버를 부르는 [MatchRepository]. **여기가 응답 형식을 아는 유일한 곳이다.**
 ///
 /// 401이면 한 번만 갱신하고 다시 부른다 — 다른 저장소와 같은 규칙이다.
+/// 갱신은 반드시 [TokenRefresher]를 거친다(`docs/implementation-notes.md` 9-6).
 class HttpMatchRepository implements MatchRepository {
-  HttpMatchRepository(this._dio, this._store, this._auth);
+  HttpMatchRepository(this._dio, this._store, this._refresher);
 
   final Dio _dio;
   final TokenStore _store;
-  final AuthRepository _auth;
+  final TokenRefresher _refresher;
 
   /// ⚠️ **2026-10-28에 `/running-matches`에서 바뀌었다**(BE PR #112). 서버가
   /// 옛 주소를 남기지 않고 지워서 호환이 없다 — 옛 주소로 보내면 404다.
@@ -55,7 +55,7 @@ class HttpMatchRepository implements MatchRepository {
         response = await call(token);
       } on DioException catch (error) {
         if (error.response?.statusCode != 401) rethrow;
-        token = await _refreshed(stored.refreshToken);
+        token = await _refreshed();
         response = await call(token);
       }
       return slotBoardFromJson(response.data);
@@ -218,7 +218,7 @@ class HttpMatchRepository implements MatchRepository {
     } on DioException catch (error) {
       if (error.response?.statusCode != 401) throw inviteExceptionOf(error);
       try {
-        return await call(await _refreshed(stored.refreshToken));
+        return await call(await _refreshed());
       } on DioException catch (retried) {
         throw inviteExceptionOf(retried);
       } on MatchException {
@@ -305,31 +305,18 @@ class HttpMatchRepository implements MatchRepository {
     } on DioException catch (error) {
       if (error.response?.statusCode != 401) throw exceptionOf(error);
       try {
-        return await call(await _refreshed(stored.refreshToken));
+        return await call(await _refreshed());
       } on DioException catch (retried) {
         throw exceptionOf(retried);
       }
     }
   }
 
-  Future<String> _refreshed(String? refreshToken) async {
-    if (refreshToken == null) {
+  Future<String> _refreshed() async {
+    final accessToken = await _refresher.refresh();
+    if (accessToken == null) {
       throw const MatchException(MatchFailure.sessionExpired);
     }
-    try {
-      final tokens = await _auth.refresh(refreshToken);
-      // ⚠️ 회전된 refreshToken도 반드시 덮어쓴다. 안 하면 다음 갱신이 죽는다.
-      await _store.saveTokens(
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      );
-      return tokens.accessToken;
-    } on AuthException catch (error) {
-      throw MatchException(
-        error.failure == AuthFailure.sessionExpired
-            ? MatchFailure.sessionExpired
-            : MatchFailure.network,
-      );
-    }
+    return accessToken;
   }
 }

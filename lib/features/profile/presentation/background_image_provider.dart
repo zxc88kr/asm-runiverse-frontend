@@ -17,7 +17,7 @@ final backgroundImageRepositoryProvider = Provider<ProfileImageRepository>(
   (ref) => HttpProfileImageRepository(
     ref.watch(dioProvider),
     ref.watch(tokenStoreProvider),
-    ref.watch(authRepositoryProvider),
+    ref.watch(tokenRefresherProvider),
     kind: ProfileImageKind.background,
   ),
 );

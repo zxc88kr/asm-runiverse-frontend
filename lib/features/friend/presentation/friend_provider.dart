@@ -13,7 +13,7 @@ final friendRepositoryProvider = Provider<FriendRepository>(
   (ref) => HttpFriendRepository(
     ref.watch(dioProvider),
     ref.watch(tokenStoreProvider),
-    ref.watch(authRepositoryProvider),
+    ref.watch(tokenRefresherProvider),
   ),
 );
 

@@ -13,7 +13,7 @@ import 'package:runiverse/features/notification/domain/notification_repository.d
 final appStreamProvider = Provider<AppStream>(
   (ref) => SseAppStream(
     ref.watch(tokenStoreProvider),
-    ref.watch(authRepositoryProvider),
+    ref.watch(tokenRefresherProvider),
   ),
 );
 
@@ -21,7 +21,7 @@ final notificationRepositoryProvider = Provider<NotificationRepository>(
   (ref) => HttpNotificationRepository(
     ref.watch(dioProvider),
     ref.watch(tokenStoreProvider),
-    ref.watch(authRepositoryProvider),
+    ref.watch(tokenRefresherProvider),
   ),
 );
 

@@ -15,7 +15,7 @@ final profileRepositoryProvider = Provider<ProfileRepository>(
   (ref) => HttpProfileRepository(
     ref.watch(dioProvider),
     ref.watch(tokenStoreProvider),
-    ref.watch(authRepositoryProvider),
+    ref.watch(tokenRefresherProvider),
   ),
 );
 

@@ -8,8 +8,7 @@ import 'package:runiverse/core/network/dio_client.dart';
 import 'package:runiverse/core/storage/token_store.dart';
 import 'package:runiverse/core/version/app_version_headers.dart';
 import 'package:runiverse/core/version/installed_app_version.dart';
-import 'package:runiverse/features/auth/domain/auth_failure.dart';
-import 'package:runiverse/features/auth/domain/auth_repository.dart';
+import 'package:runiverse/features/auth/domain/token_refresher.dart';
 import 'package:runiverse/features/notification/data/notification_dto.dart';
 import 'package:runiverse/features/notification/domain/app_notification.dart';
 import 'package:runiverse/features/notification/domain/app_stream.dart';
@@ -54,11 +53,11 @@ class AppStreamBackoff {
 /// 늘 열려 있고 저쪽은 방에 있을 때만 열린다. 한 클래스가 둘을 맡으면 한쪽
 /// 사정으로 다른 쪽을 끊는 날이 온다.
 class SseAppStream implements AppStream {
-  SseAppStream(this._store, this._auth, {String? baseUrl})
+  SseAppStream(this._store, this._refresher, {String? baseUrl})
     : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
   final TokenStore _store;
-  final AuthRepository _auth;
+  final TokenRefresher _refresher;
   final String _baseUrl;
 
   static const _path = '/api/v1/app/stream';
@@ -112,7 +111,7 @@ class SseAppStream implements AppStream {
         body = await _open(client, token);
       } on AppStreamException catch (error) {
         if (error.failure != AppStreamFailure.sessionExpired) rethrow;
-        token = await _refreshed(stored.refreshToken);
+        token = await _refreshed();
         if (controller.isClosed) return;
         body = await _open(client, token);
       }
@@ -232,24 +231,16 @@ class SseAppStream implements AppStream {
     }
   }
 
-  Future<String> _refreshed(String? refreshToken) async {
-    if (refreshToken == null) {
-      throw const AppStreamException(AppStreamFailure.sessionExpired);
+  /// 갱신은 반드시 [TokenRefresher]를 거친다(`docs/implementation-notes.md` 9-6).
+  ///
+  /// ⚠️ **못 받아도 `network`로 던진다** — `SseMatchStream`과 같은 이유다.
+  /// 진짜 거절이면 [TokenRefresher]가 세션을 끝낸다.
+  Future<String> _refreshed() async {
+    final accessToken = await _refresher.refresh();
+    if (accessToken == null) {
+      throw const AppStreamException(AppStreamFailure.network);
     }
-    try {
-      final tokens = await _auth.refresh(refreshToken);
-      await _store.saveTokens(
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      );
-      return tokens.accessToken;
-    } on AuthException catch (error) {
-      throw AppStreamException(
-        error.failure == AuthFailure.sessionExpired
-            ? AppStreamFailure.sessionExpired
-            : AppStreamFailure.network,
-      );
-    }
+    return accessToken;
   }
 
   /// 바이트를 알림으로 옮긴다. **테스트가 직접 부른다.**

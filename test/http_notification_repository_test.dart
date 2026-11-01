@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:runiverse/features/notification/data/http_notification_repository.dart';
 import 'package:runiverse/core/storage/token_store.dart';
 import 'package:runiverse/features/auth/data/fake_auth_repository.dart';
+import 'package:runiverse/features/auth/domain/token_refresher.dart';
 import 'package:runiverse/features/notification/domain/notification_repository.dart';
 
 /// 알림 REST.
@@ -65,7 +66,11 @@ void main() {
       dio.httpClientAdapter = _RecordingAdapter(sent);
       final store = InMemoryTokenStore();
       await store.saveTokens(accessToken: 'a', refreshToken: 'r');
-      repo = HttpNotificationRepository(dio, store, FakeAuthRepository());
+      repo = HttpNotificationRepository(
+        dio,
+        store,
+        TokenRefresher(FakeAuthRepository(), store),
+      );
     });
 
     test('⚠️ 첫 페이지에는 cursor를 보내지 않는다', () async {

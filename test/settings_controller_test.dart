@@ -109,6 +109,56 @@ void main() {
     });
   });
 
+  group('연타', () {
+    test('⚠️ 보내는 중에 다시 누르면 응답 뒤 마지막 값을 한 번 더 보낸다', () async {
+      // 겹쳐 보내면 늦게 도착한 옛 응답이 화면을 덮어, 화면은 켜짐인데 서버는
+      // 꺼짐인 채로 남을 수 있다. 하나씩 보내야 둘이 같다.
+      final repository = slow();
+      final container = makeContainer(repository);
+      final notifier = container.read(settingsControllerProvider.notifier);
+      await notifier.load();
+
+      final first = notifier.setAlertConsent(false);
+      await notifier.setAlertConsent(true);
+
+      // 두 번째 누름은 아직 나가지 않았다.
+      expect(repository.updateCalls, 1);
+      expect(
+        container.read(settingsControllerProvider).settings?.alertConsent,
+        isTrue,
+      );
+
+      await first;
+
+      expect(repository.updateCalls, 2);
+      expect(repository.settings.alertConsent, isTrue);
+      expect(
+        container.read(settingsControllerProvider).settings?.alertConsent,
+        isTrue,
+      );
+    });
+
+    test('보내는 중에 눌렀다 되돌리면 더 보내지 않는다', () async {
+      // 첫 응답이 이미 화면 값과 같다. 같은 값을 또 보낼 이유가 없다.
+      final repository = slow();
+      final container = makeContainer(repository);
+      final notifier = container.read(settingsControllerProvider.notifier);
+      await notifier.load();
+
+      final first = notifier.setAlertConsent(false);
+      await notifier.setAlertConsent(true);
+      await notifier.setAlertConsent(false);
+      await first;
+
+      expect(repository.updateCalls, 1);
+      expect(repository.settings.alertConsent, isFalse);
+      expect(
+        container.read(settingsControllerProvider).settings?.alertConsent,
+        isFalse,
+      );
+    });
+  });
+
   group('조회', () {
     test('설정을 못 읽으면 오류 화면이다', () async {
       // ⚠️ 예전에는 계정 조회와 설정 조회가 따로였고, 하나만 실패하면 나머지를

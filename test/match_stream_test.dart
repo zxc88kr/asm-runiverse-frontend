@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:runiverse/core/storage/token_store.dart';
 import 'package:runiverse/features/auth/data/fake_auth_repository.dart';
+import 'package:runiverse/features/auth/domain/token_refresher.dart';
 import 'package:runiverse/features/matching/data/sse_match_stream.dart';
 import 'package:runiverse/features/matching/domain/match_event.dart';
 import 'package:runiverse/features/matching/domain/room_info.dart';
@@ -260,7 +261,7 @@ void main() {
       );
       stream = SseMatchStream(
         store,
-        FakeAuthRepository(latency: Duration.zero),
+        TokenRefresher(FakeAuthRepository(latency: Duration.zero), store),
         baseUrl: 'http://${server.address.address}:${server.port}',
       );
     });
