@@ -444,12 +444,9 @@ dio의 `LogInterceptor`는 요청·응답 본문을 통째로 찍는다.
 인터셉터는 아직 없다. 저장소마다 401을 직접 다룬다.
 
 **2번은 `TokenRefresher`(`features/auth/domain/`)가 맡는다.** 진행 중인 갱신이 있으면
-새로 부르지 않고 그것을 기다린다. ⚠️ **아직 세 곳만 그것을 쓴다** —
-`HttpRunningRoomRepository`·WebSocket·`AuthController.signOut`이다. 앞의 둘은 러닝을
-시작할 때 **같은 만료 토큰으로 거의 동시에** 나가 실제로 겹친다.
-
-나머지 네 곳(`onboarding` · `profile` × 2 · `settings`)은 아직 `_auth.refresh`를 직접
-부른다. 서로 동시에 나갈 일이 없어 미뤄 뒀다. **손대는 김에 하나씩 옮긴다.**
+새로 부르지 않고 그것을 기다린다. ⚠️ **토큰을 갱신하는 곳은 전부 그것을 거친다.**
+하나라도 `_auth.refresh`를 직접 부르면 그곳과 겹칠 때 막지 못한다. 설정 화면은
+설정·신체 정보 조회가 함께 나가고, 앱 스트림은 늘 열려 있어 언제든 다른 요청과 겹친다.
 
 `core`에 두지 않은 이유는 `AuthRepository`를 알아야 해서다 — `core → features`는
 뒤집힌 방향이다. 쓰는 쪽에는 함수 하나만 넘긴다(`WsAccessToken`).
