@@ -217,7 +217,7 @@ void main() {
   group('눌린 푸시', () {
     const friendRequest = OpenedPush(
       messageId: 'm-1',
-      data: {'type': 'FRIEND_REQUEST_RECEIVED', 'actorId': 'u-9'},
+      data: {'type': 'FRIEND_REQUESTED', 'actorId': 'u-9'},
     );
 
     test('뒤에 있던 앱에서 누른 푸시를 셸이 한 번만 꺼내 간다', () async {

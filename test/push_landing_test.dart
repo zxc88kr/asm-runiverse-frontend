@@ -6,7 +6,7 @@ import 'package:runiverse/features/notification/domain/push_landing.dart';
 /// 알림함의 랜딩 규칙과 어긋나면 같은 알림이 누른 곳에 따라 다른 화면을 연다.
 void main() {
   test('친구 요청·수락은 상대 프로필이다', () {
-    for (final type in ['FRIEND_REQUEST_RECEIVED', 'FRIEND_REQUEST_ACCEPTED']) {
+    for (final type in ['FRIEND_REQUESTED', 'FRIEND_ACCEPTED']) {
       final landing = PushLanding.of({
         'type': type,
         'actorId': 'u-9',
@@ -19,9 +19,9 @@ void main() {
   });
 
   test('친구 푸시에 상대가 없으면 앱만 연다', () {
-    expect(PushLanding.of({'type': 'FRIEND_REQUEST_RECEIVED'}), isNull);
+    expect(PushLanding.of({'type': 'FRIEND_REQUESTED'}), isNull);
     expect(
-      PushLanding.of({'type': 'FRIEND_REQUEST_ACCEPTED', 'actorId': ''}),
+      PushLanding.of({'type': 'FRIEND_ACCEPTED', 'actorId': ''}),
       isNull,
     );
   });
@@ -29,7 +29,7 @@ void main() {
   test('러닝 초대는 수락·거절 버튼이 있는 알림함이다', () {
     expect(
       PushLanding.of({
-        'type': 'RUNNING_INVITATION_RECEIVED',
+        'type': 'RUNNING_INVITED',
         'actorId': 'u-9',
         'runningRoomId': '130',
       }),
@@ -37,12 +37,8 @@ void main() {
     );
   });
 
-  test('초대 수락·매칭 확정·출발 리마인더는 대기방이다', () {
-    for (final type in [
-      'RUNNING_INVITATION_ACCEPTED',
-      'MATCH_CONFIRMED',
-      'RUNNING_REMINDER',
-    ]) {
+  test('매칭 확정·출발 리마인더는 대기방이다', () {
+    for (final type in ['MATCH_CONFIRMED', 'RUNNING_REMINDER']) {
       expect(
         PushLanding.of({'type': type, 'runningRoomId': '130'}),
         isA<PushLandingRoom>(),

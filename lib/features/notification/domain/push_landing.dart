@@ -13,11 +13,10 @@ sealed class PushLanding {
   /// 서버 약속: `data` 값은 전부 문자열이고, `type`으로 종류를 가린다.
   /// 모르는 `type`은 무시한다 — 서버가 종류를 늘려도 앱이 깨지지 않는다.
   static PushLanding? of(Map<String, Object?> data) => switch (data['type']) {
-    'FRIEND_REQUEST_RECEIVED' ||
-    'FRIEND_REQUEST_ACCEPTED' => _profileOf(data['actorId']),
+    'FRIEND_REQUESTED' ||
+    'FRIEND_ACCEPTED' => _profileOf(data['actorId']),
     // 수락·거절 버튼이 알림함에 있다. 알림함의 초대 줄은 눌러도 옮기지 않는다.
-    'RUNNING_INVITATION_RECEIVED' => const PushLandingNotifications(),
-    'RUNNING_INVITATION_ACCEPTED' ||
+    'RUNNING_INVITED' => const PushLandingNotifications(),
     'MATCH_CONFIRMED' ||
     'RUNNING_REMINDER' => const PushLandingRoom(),
     _ => null,
