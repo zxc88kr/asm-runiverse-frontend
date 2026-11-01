@@ -400,7 +400,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     // 아직 못 읽었으면 끈 것처럼 두고 누르지 못하게 한다.
                     // 켜 보이게 두면 실제 값과 반대일 수 있다.
                     value: settings?.alertConsent ?? false,
-                    onChanged: settings == null ? null : _setAlertConsent,
+                    // 읽는 중에도 잠근다. 다시 들어왔을 때 남아 있는 값은 늦게 온
+                    // 조회에 덮이거나, 계정을 바꾼 직후면 앞 계정의 값이다.
+                    onChanged: settings == null || state.loading
+                        ? null
+                        : _setAlertConsent,
                   ),
                 ],
               ),
@@ -409,7 +413,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 const _SectionLabel(AppStrings.settingsVisibilitySection),
                 _VisibilityChips(
                   value: settings?.visibility,
-                  onChanged: settings == null ? null : _setVisibility,
+                  onChanged: settings == null || state.loading
+                      ? null
+                      : _setVisibility,
                 ),
               ],
             ],
