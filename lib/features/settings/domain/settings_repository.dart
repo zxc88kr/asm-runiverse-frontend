@@ -19,9 +19,9 @@ abstract interface class SettingsRepository {
 
   /// **준 것만 보낸다.** 생략한 필드는 서버가 지금 값을 그대로 둔다.
   ///
-  /// 돌려받은 값을 그대로 쓴다. 보낸 값을 화면에 쓰면 안 된다 —
-  /// 서버는 **부분 수정이어도 갱신 후 전체 설정을 돌려주므로**, 연타해서
-  /// 응답 순서가 뒤바뀌어도 마지막 응답이 화면을 정리해 준다.
+  /// 돌려받은 값을 그대로 쓴다. 서버는 **부분 수정이어도 갱신 후 전체 설정을
+  /// 돌려준다.** 연타했을 때 요청을 하나씩 보내는 것은 부르는 쪽 몫이다
+  /// (`SettingsController`).
   Future<AppSettings> updateSettings({
     bool? alertConsent,
     ProfileVisibility? visibility,
