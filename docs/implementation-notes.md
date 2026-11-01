@@ -444,12 +444,14 @@ dio의 `LogInterceptor`는 요청·응답 본문을 통째로 찍는다.
 인터셉터는 아직 없다. 저장소마다 401을 직접 다룬다.
 
 **2번은 `TokenRefresher`(`features/auth/domain/`)가 맡는다.** 진행 중인 갱신이 있으면
-새로 부르지 않고 그것을 기다린다. ⚠️ **토큰을 갱신하는 곳은 전부 그것을 거친다.**
-하나라도 `_auth.refresh`를 직접 부르면 그곳과 겹칠 때 막지 못한다. 설정 화면은
+새로 부르지 않고 그것을 기다린다. ⚠️ **저장소·스트림은 전부 그것을 거친다**(앱 시작 때
+세션을 되살리는 `AuthController.restore`만 예외 — 로그인 상태를 세우기 전이라 겹칠 요청이
+없다). 하나라도 `_auth.refresh`를 직접 부르면 그곳과 겹칠 때 막지 못한다. 설정 화면은
 설정·신체 정보 조회가 함께 나가고, 앱 스트림은 늘 열려 있어 언제든 다른 요청과 겹친다.
 
 `core`에 두지 않은 이유는 `AuthRepository`를 알아야 해서다 — `core → features`는
-뒤집힌 방향이다. 쓰는 쪽에는 함수 하나만 넘긴다(`WsAccessToken`).
+뒤집힌 방향이다. `core`의 WebSocket에는 함수 하나만 넘긴다(`WsAccessToken`).
+`features`의 저장소는 `TokenRefresher`를 직접 받는다.
 
 1. **`/auth/login`의 401은 재시도하지 않는다.** 로그인 실패가 401이라, 그냥 두면
    비밀번호를 틀릴 때마다 refresh를 부른다. `signup` `login` `refresh` 세 경로를 건너뛴다.

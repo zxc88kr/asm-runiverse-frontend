@@ -11,9 +11,8 @@ import 'package:runiverse/features/onboarding/domain/onboarding_repository.dart'
 ///
 /// ## 인터셉터를 쓰지 않는다
 ///
-/// `Authorization` 헤더가 필요한 요청은 지금 이것 하나뿐이다. 인터셉터를 만들면
-/// 요청마다 저장소를 읽거나 토큰 캐시를 따로 관리해야 하는데, 대상이 하나인
-/// 상태에서는 **관리할 것만 늘어난다.** 인증 요청이 늘어나는 시점에 올린다.
+/// 저장소마다 401을 직접 다룬다. 갱신만 [TokenRefresher] 하나로 모은다
+/// (`docs/implementation-notes.md` 9-6).
 ///
 /// ## 왜 `TokenRefresher`를 받는가
 ///

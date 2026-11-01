@@ -85,8 +85,8 @@ class SettingsController extends Notifier<SettingsState> {
 
   /// 알림을 받겠다는 의사를 바꾼다. 실패하면 그 이유를 돌려준다.
   ///
-  /// ⚠️ 이 값이 `true`라고 알림이 오지는 않는다. 앱에 알림을 띄우는 코드가
-  /// 아직 없다(설계 문서 3절).
+  /// ⚠️ 서버는 이 값이 `false`인 사람에게 푸시를 보내지 않는다. `true`여도
+  /// 기기 알림 권한이 꺼져 있으면 오지 않는다(설계 문서 3절).
   Future<SettingsFailure?> setAlertConsent(bool value) =>
       _update(alertConsent: value);
 
