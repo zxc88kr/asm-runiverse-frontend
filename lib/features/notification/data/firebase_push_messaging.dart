@@ -21,9 +21,15 @@ class FirebasePushMessaging implements PushMessaging {
 
   final FirebaseMessaging _messaging;
 
+  /// ⚠️ **던지지 않는다.** 셸이 기다리지 않고 부르므로, 던지면 처리되지 않은
+  /// 오류가 되어 Crashlytics에 치명 오류로 쌓인다.
   @override
   Future<void> requestPermission() async {
-    await _messaging.requestPermission();
+    try {
+      await _messaging.requestPermission();
+    } on FirebaseException catch (error) {
+      debugPrint('[push] 알림 권한을 묻지 못했다 · ${error.code}');
+    }
   }
 
   /// ⚠️ **iOS는 APNs 토큰이 먼저다.** 없을 때 FCM 토큰을 달라고 하면 예외가 난다
@@ -47,10 +53,16 @@ class FirebasePushMessaging implements PushMessaging {
   @override
   Stream<String> get tokenRefreshes => _messaging.onTokenRefresh;
 
+  /// 못 읽으면 누른 푸시가 없던 것으로 친다 — 앱만 열린다.
   @override
   Future<OpenedPush?> initialOpened() async {
-    final message = await _messaging.getInitialMessage();
-    return message == null ? null : _openedOf(message);
+    try {
+      final message = await _messaging.getInitialMessage();
+      return message == null ? null : _openedOf(message);
+    } on FirebaseException catch (error) {
+      debugPrint('[push] 앱을 연 푸시를 읽지 못했다 · ${error.code}');
+      return null;
+    }
   }
 
   @override
