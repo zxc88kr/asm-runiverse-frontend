@@ -2,20 +2,20 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:runiverse/core/storage/token_store.dart';
 import 'package:runiverse/core/utils/kst_time.dart';
-import 'package:runiverse/features/auth/domain/auth_failure.dart';
-import 'package:runiverse/features/auth/domain/auth_repository.dart';
+import 'package:runiverse/features/auth/domain/token_refresher.dart';
 import 'package:runiverse/features/session/domain/user_status.dart';
 import 'package:runiverse/features/session/domain/user_status_repository.dart';
 
 /// 진짜 서버를 부르는 [UserStatusRepository]. **여기가 응답 형식을 아는 유일한 곳이다.**
 ///
 /// 401이면 한 번만 갱신하고 다시 부른다 — 다른 저장소와 같은 규칙이다.
+/// 갱신은 반드시 [TokenRefresher]를 거친다(`docs/implementation-notes.md` 9-6).
 class HttpUserStatusRepository implements UserStatusRepository {
-  HttpUserStatusRepository(this._dio, this._store, this._auth);
+  HttpUserStatusRepository(this._dio, this._store, this._refresher);
 
   final Dio _dio;
   final TokenStore _store;
-  final AuthRepository _auth;
+  final TokenRefresher _refresher;
 
   static const _path = '/api/v1/users/me/status';
 
@@ -123,32 +123,19 @@ class HttpUserStatusRepository implements UserStatusRepository {
         throw UserStatusException(_failureOf(error));
       }
       try {
-        return await call(await _refreshed(stored.refreshToken));
+        return await call(await _refreshed());
       } on DioException catch (retried) {
         throw UserStatusException(_failureOf(retried));
       }
     }
   }
 
-  Future<String> _refreshed(String? refreshToken) async {
-    if (refreshToken == null) {
+  Future<String> _refreshed() async {
+    final accessToken = await _refresher.refresh();
+    if (accessToken == null) {
       throw const UserStatusException(UserStatusFailure.sessionExpired);
     }
-    try {
-      final tokens = await _auth.refresh(refreshToken);
-      // ⚠️ 회전된 refreshToken도 반드시 덮어쓴다. 안 하면 다음 갱신이 죽는다.
-      await _store.saveTokens(
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      );
-      return tokens.accessToken;
-    } on AuthException catch (error) {
-      throw UserStatusException(
-        error.failure == AuthFailure.sessionExpired
-            ? UserStatusFailure.sessionExpired
-            : UserStatusFailure.network,
-      );
-    }
+    return accessToken;
   }
 
   UserStatusFailure _failureOf(DioException error) {
