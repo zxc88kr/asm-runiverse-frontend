@@ -15,7 +15,7 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
   (ref) => HttpSettingsRepository(
     ref.watch(dioProvider),
     ref.watch(tokenStoreProvider),
-    ref.watch(authRepositoryProvider),
+    ref.watch(tokenRefresherProvider),
   ),
 );
 

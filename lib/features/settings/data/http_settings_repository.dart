@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:runiverse/core/storage/token_store.dart';
-import 'package:runiverse/features/auth/domain/auth_failure.dart';
-import 'package:runiverse/features/auth/domain/auth_repository.dart';
+import 'package:runiverse/features/auth/domain/token_refresher.dart';
 import 'package:runiverse/features/settings/domain/app_settings.dart';
 import 'package:runiverse/features/settings/domain/password_change_failure.dart';
 import 'package:runiverse/features/settings/domain/profile_visibility.dart';
@@ -11,13 +10,14 @@ import 'package:runiverse/features/settings/domain/settings_repository.dart';
 /// 진짜 서버를 부르는 [SettingsRepository].
 ///
 /// 401이면 **한 번만** 갱신하고 다시 부른다 — `HttpProfileRepository`와 같은 규칙이다.
+/// 갱신은 반드시 [TokenRefresher]를 거친다(`docs/implementation-notes.md` 9-6).
 /// **[changePassword]만 예외다.** 아래를 보라.
 class HttpSettingsRepository implements SettingsRepository {
-  HttpSettingsRepository(this._dio, this._store, this._auth);
+  HttpSettingsRepository(this._dio, this._store, this._refresher);
 
   final Dio _dio;
   final TokenStore _store;
-  final AuthRepository _auth;
+  final TokenRefresher _refresher;
 
   static const _settingsPath = '/api/v1/users/me/settings';
   static const _passwordPath = '/api/v1/users/me/password';
@@ -96,10 +96,7 @@ class HttpSettingsRepository implements SettingsRepository {
         throw PasswordChangeException(failure);
       }
       try {
-        await _patchPassword(
-          body,
-          await _refreshedForPassword(stored.refreshToken),
-        );
+        await _patchPassword(body, await _refreshedForPassword());
       } on DioException catch (retried) {
         throw PasswordChangeException(_passwordFailureOf(retried));
       }
@@ -135,7 +132,7 @@ class HttpSettingsRepository implements SettingsRepository {
         throw SettingsException(_failureOf(error));
       }
       try {
-        return await call(await _refreshed(stored.refreshToken));
+        return await call(await _refreshed());
       } on DioException catch (retried) {
         throw SettingsException(_failureOf(retried));
       }
@@ -161,32 +158,19 @@ class HttpSettingsRepository implements SettingsRepository {
   static String? _stringOrNull(Object? value) =>
       value is String && value.isNotEmpty ? value : null;
 
-  Future<String> _refreshed(String? refreshToken) async {
-    if (refreshToken == null) {
+  Future<String> _refreshed() async {
+    final accessToken = await _refresher.refresh();
+    if (accessToken == null) {
       throw const SettingsException(SettingsFailure.sessionExpired);
     }
-    try {
-      final tokens = await _auth.refresh(refreshToken);
-      // ⚠️ 회전된 refreshToken도 반드시 덮어쓴다. 안 하면 다음 갱신이 죽는다.
-      await _store.saveTokens(
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      );
-      return tokens.accessToken;
-    } on AuthException catch (error) {
-      throw SettingsException(
-        error.failure == AuthFailure.sessionExpired
-            ? SettingsFailure.sessionExpired
-            : SettingsFailure.network,
-      );
-    }
+    return accessToken;
   }
 
   /// 갱신이 실패하면 [SettingsException]이 나온다. 비밀번호 화면은 그것을
   /// 잡지 않으므로 여기서 이 경로의 말로 옮긴다.
-  Future<String> _refreshedForPassword(String? refreshToken) async {
+  Future<String> _refreshedForPassword() async {
     try {
-      return await _refreshed(refreshToken);
+      return await _refreshed();
     } on SettingsException catch (error) {
       throw PasswordChangeException(
         error.failure == SettingsFailure.network
