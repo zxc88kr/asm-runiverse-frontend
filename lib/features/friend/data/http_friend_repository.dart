@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:runiverse/core/storage/token_store.dart';
-import 'package:runiverse/features/auth/domain/auth_repository.dart';
+import 'package:runiverse/features/auth/domain/token_refresher.dart';
 import 'package:runiverse/features/friend/data/friend_dto.dart';
 import 'package:runiverse/features/friend/domain/friend_list.dart';
 import 'package:runiverse/features/friend/domain/friend_recommendation.dart';
@@ -11,12 +11,13 @@ import 'package:runiverse/features/friend/domain/friend_repository.dart';
 /// 유일한 곳이다.**
 ///
 /// 401이면 한 번만 갱신하고 다시 부른다 — 다른 저장소와 같은 규칙이다.
+/// 갱신은 반드시 [TokenRefresher]를 거친다(`docs/implementation-notes.md` 9-6).
 class HttpFriendRepository implements FriendRepository {
-  HttpFriendRepository(this._dio, this._store, this._auth);
+  HttpFriendRepository(this._dio, this._store, this._refresher);
 
   final Dio _dio;
   final TokenStore _store;
-  final AuthRepository _auth;
+  final TokenRefresher _refresher;
 
   static String _friendsPath(String userId) => '/api/v1/users/$userId/friends';
   static String _requestPath(String userId) =>
@@ -155,27 +156,18 @@ class HttpFriendRepository implements FriendRepository {
     } on DioException catch (error) {
       if (error.response?.statusCode != 401) throw exceptionOf(error);
       try {
-        return await call(await _refreshed(stored.refreshToken));
+        return await call(await _refreshed());
       } on DioException catch (retried) {
         throw exceptionOf(retried);
       }
     }
   }
 
-  Future<String> _refreshed(String? refreshToken) async {
-    if (refreshToken == null) {
+  Future<String> _refreshed() async {
+    final accessToken = await _refresher.refresh();
+    if (accessToken == null) {
       throw const FriendException(FriendFailure.sessionExpired);
     }
-    try {
-      final tokens = await _auth.refresh(refreshToken);
-      // ⚠️ 회전된 refreshToken도 반드시 덮어쓴다. 안 하면 다음 갱신이 죽는다.
-      await _store.saveTokens(
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      );
-      return tokens.accessToken;
-    } on Object {
-      throw const FriendException(FriendFailure.sessionExpired);
-    }
+    return accessToken;
   }
 }
