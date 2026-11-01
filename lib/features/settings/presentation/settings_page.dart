@@ -30,9 +30,9 @@ import 'package:runiverse/features/settings/domain/settings_failure.dart';
 import 'package:runiverse/features/settings/presentation/settings_provider.dart';
 import 'package:runiverse/features/settings/presentation/withdraw_sheet.dart';
 
-// TODO(되살리기): 알림 동의·공개 범위를 서버에 저장하게 되면 true로.
+// TODO(되살리기): 공개 범위를 서버가 실제로 적용하게 되면 true로.
 // 빌드 때 고정하는 숨김이다(원격 설정 아님).
-const _showPreferences = false;
+const _showVisibility = false;
 
 /// 설정 (S22.2).
 ///
@@ -77,9 +77,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     // 빌드 중에 provider를 고치면 죽는다 (`docs/implementation-notes.md` §10-1).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (_showPreferences) {
-        ref.read(settingsControllerProvider.notifier).load();
-      }
+      ref.read(settingsControllerProvider.notifier).load();
       _loadBody();
     });
   }
@@ -387,26 +385,26 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             AppSpacing.space8,
           ),
           children: [
-            if (_showPreferences) ...[
-              if (failed)
-                _ErrorCard(
-                  onRetry: () =>
-                      ref.read(settingsControllerProvider.notifier).load(),
-                )
-              else ...[
-                const _SectionLabel(AppStrings.settingsNotificationSection),
-                _Card(
-                  children: [
-                    _SwitchRow(
-                      label: AppStrings.settingsAlertConsent,
-                      description: AppStrings.settingsAlertConsentWhy,
-                      // 아직 못 읽었으면 끈 것처럼 두고 누르지 못하게 한다.
-                      // 켜 보이게 두면 실제 값과 반대일 수 있다.
-                      value: settings?.alertConsent ?? false,
-                      onChanged: settings == null ? null : _setAlertConsent,
-                    ),
-                  ],
-                ),
+            if (failed)
+              _ErrorCard(
+                onRetry: () =>
+                    ref.read(settingsControllerProvider.notifier).load(),
+              )
+            else ...[
+              const _SectionLabel(AppStrings.settingsNotificationSection),
+              _Card(
+                children: [
+                  _SwitchRow(
+                    label: AppStrings.settingsAlertConsent,
+                    description: AppStrings.settingsAlertConsentWhy,
+                    // 아직 못 읽었으면 끈 것처럼 두고 누르지 못하게 한다.
+                    // 켜 보이게 두면 실제 값과 반대일 수 있다.
+                    value: settings?.alertConsent ?? false,
+                    onChanged: settings == null ? null : _setAlertConsent,
+                  ),
+                ],
+              ),
+              if (_showVisibility) ...[
                 const SizedBox(height: AppSpacing.space6),
                 const _SectionLabel(AppStrings.settingsVisibilitySection),
                 _VisibilityChips(
@@ -414,8 +412,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   onChanged: settings == null ? null : _setVisibility,
                 ),
               ],
-              const SizedBox(height: AppSpacing.space6),
             ],
+            const SizedBox(height: AppSpacing.space6),
 
             // ⚠️ **편집 화면에서 옮겨 왔다**(2026-10-22 요청). 자주 고치는
             // 값이 아니고, 거기 있으면 홈과 닮은 위쪽이 긴 폼에 묻힌다.
