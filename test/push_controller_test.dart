@@ -188,8 +188,14 @@ void main() {
       app.auth.set(me);
       await settle();
 
+      final dialog = Completer<void>();
+      app.messaging.permissionHold = dialog;
+      final asking = push(app.container).askPermission();
+      await settle();
+      // 창이 떠 있는 사이에 토큰이 생긴다.
       app.messaging.currentToken = 'fcm-1';
-      await push(app.container).askPermission();
+      dialog.complete();
+      await asking;
       // 한 번 실행에 한 번만 묻는다.
       await push(app.container).askPermission();
 
@@ -273,11 +279,17 @@ class _FakeMessaging implements PushMessaging {
   String? currentToken = 'fcm-1';
   OpenedPush? initial;
   var permissionAsks = 0;
+
+  /// 채우면 권한 창이 떠 있는 것처럼 [requestPermission]이 여기서 기다린다.
+  Completer<void>? permissionHold;
   final refreshes = StreamController<String>.broadcast();
   final taps = StreamController<OpenedPush>.broadcast();
 
   @override
-  Future<void> requestPermission() async => permissionAsks++;
+  Future<void> requestPermission() async {
+    permissionAsks++;
+    await permissionHold?.future;
+  }
 
   @override
   Future<String?> token() async => currentToken;
